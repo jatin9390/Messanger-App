@@ -8,11 +8,22 @@ import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 import 'widgets/offline_banner.dart';
 
+import 'services/notification_service.dart';
+import 'package:telephony/telephony.dart';
+
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  // Required to handle messages when the app is killed or suspended
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   debugPrint("Handling a background message: ${message.messageId}");
+}
+
+@pragma('vm:entry-point')
+void backgrounMessageHandler(SmsMessage message) async {
+  await NotificationService.showNotification(
+    id: message.id ?? 0,
+    title: message.address ?? "New SMS",
+    body: message.body ?? "",
+  );
 }
 
 void main() async {
@@ -22,26 +33,42 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // Set up Firebase Cloud Messaging
+  await NotificationService.init();
+
+  Telephony.instance.listenIncomingSms(
+    onNewMessage: (SmsMessage message) {
+      NotificationService.showNotification(
+        id: message.id ?? 1,
+        title: message.address ?? "New SMS",
+        body: message.body ?? "",
+      );
+    },
+    onBackgroundMessage: backgrounMessageHandler,
+  );
+
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
   
-  // Request permission (Required for iOS and Android 13+)
   await FirebaseMessaging.instance.requestPermission(
     alert: true,
     badge: true,
     sound: true,
   );
 
-  // Listen to messages while the app is in the foreground!
   FirebaseMessaging.onMessage.listen((RemoteMessage message) {
     debugPrint('Got a message whilst in the foreground!');
     if (message.notification != null) {
       debugPrint('Message also contained a notification: ${message.notification!.title}');
     }
   });
+
+  FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+    debugPrint('Notification tapped!');
+  });
   
   runApp(const MyApp());
 }
+
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -49,6 +76,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey, // Added key for background navigation
       debugShowCheckedModeBanner: false,
       title: 'Real-Time App',
       theme: ThemeData(

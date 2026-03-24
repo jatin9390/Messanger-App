@@ -48,23 +48,6 @@ class _ChatScreenState extends State<ChatScreen> {
           'message': message,
           'timestamp': FieldValue.serverTimestamp(),
         });
-
-        // Magic Auto-Reply Logic for the Test Bot
-        if (receiverUid == 'bot_123') {
-          Future.delayed(const Duration(seconds: 1), () async {
-            await _firestore
-                .collection('chat_rooms')
-                .doc(chatRoomId)
-                .collection('messages')
-                .add({
-              'senderId': 'bot_123',
-              'senderEmail': 'TestBot@app.com',
-              'receiverId': currentUid,
-              'message': 'Beep boop 🤖! You said: "$message"',
-              'timestamp': FieldValue.serverTimestamp(),
-            });
-          });
-        }
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
